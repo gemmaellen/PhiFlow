@@ -8,63 +8,10 @@ import sys
 import warnings
 from os.path import join, isfile, isdir, abspath, expanduser, basename, split
 
-from phi import struct, math, __version__ as phi_version
+from phi import math, __version__ as phi_version
 from ._field import Field, SampledField
 from ._field_io import read, write
 from ..math import Shape, batch
-
-
-def read_sim_frame(directory: math.Tensor,
-                   names: str or tuple or list or dict or struct.Struct,
-                   frame: int,
-                   convert_to_backend=True):
-    def single_read(name):
-        name = _slugify_filename(name)
-        files = math.map(lambda dir_: _filename(dir_, name, frame), directory)
-        return read(files, convert_to_backend=convert_to_backend)
-
-    return struct.map(single_read, names)
-
-
-def write_sim_frame(directory: math.Tensor,
-                    fields: Field or tuple or list or dict or struct.Struct,
-                    frame: int,
-                    names: str or tuple or list or struct.Struct or None = None):
-    """
-    Write a Field or structure of Fields to files.
-    The filenames are created from the provided names and the frame index in accordance with the
-    scene format specification at https://tum-pbs.github.io/PhiFlow/Scene_Format_Specification.html .
-
-    This method can be used in batch mode.
-    Batch mode is active if a list of directories is given instead of a single directory.
-    Then, all fields are unstacked along the batch_dim dimension and matched with the directories list.
-
-    Args:
-        directory: directory name or list of directories.
-            If a list is provided, all fields are unstacked along batch_dim and matched with their respective directory.
-        fields: single field or structure of Fields to save.
-        frame: Number < 1000000, typically time step index.
-        names: (Optional) Structure matching fields, holding the filename for each respective Field.
-            If not provided, names are automatically generated based on the structure of fields.
-    """
-    if names is None:
-        names = struct.names(fields)
-    if frame > 1000000:
-        warnings.warn(f"frame too large: {frame}. Data will be saved but filename might cause trouble in the future.")
-
-    def single_write(f, name):
-        name = _slugify_filename(name)
-        files = math.map(lambda dir_: _filename(dir_, name, frame), directory)
-        if isinstance(f, SampledField):
-            write(f, files)
-        elif isinstance(f, math.Tensor):
-            raise NotImplementedError()
-        elif isinstance(f, Field):
-            raise ValueError("write_sim_frame: only SampledField instances are saved. Resample other Fields before saving them.")
-        else:
-            raise ValueError(f"write_sim_frame: only SampledField instances can be saved but got {f}")
-
-    struct.foreach(single_write, fields, names)
 
 
 def _filename(simpath, name, frame):
@@ -328,13 +275,15 @@ class Scene(object):
             with open(join(path, "description.json"), "w") as out:
                 json.dump(self._properties, out, indent=2)
 
-    def write_sim_frame(self, arrays, fieldnames, frame):
-        write_sim_frame(self._paths, arrays, names=fieldnames, frame=frame)
-
     def write(self, data: dict = None, frame=0, **kw_data):
         """
         Writes fields to this scene.
-        One NumPy file will be created for each `phi.field.Field`
+        One NumPy file will be created for each `phi.field.Field`.
+        The filenames are created from the provided names and the frame index in accordance with the
+        scene format specification at https://tum-pbs.github.io/PhiFlow/Scene_Format_Specification.html .
+
+        This method can be used in batch mode, when this `Scene`'s shape is not empty.
+        Then, all fields are unstacked along the batch_dim dimension and matched with the directories list.
 
         See Also:
             `Scene.read()`.
@@ -342,17 +291,28 @@ class Scene(object):
         Args:
             data: `dict` mapping field names to `Field` objects that can be written using `phi.field.write()`.
             kw_data: Additional data, overrides elements in `data`.
-            frame: Frame number.
+            frame: Frame number as `int`.
         """
         data = dict(data) if data else {}
         data.update(kw_data)
-        write_sim_frame(self._paths, data, names=None, frame=frame)
+        if frame > 1000000:
+            warnings.warn(f"frame too large: {frame}. Data will be saved but filename might cause trouble in the future.")
+        for name, f in data.items():
+            name = _slugify_filename(name)
+            files = math.map(lambda dir_: _filename(dir_, name, frame), self._paths)
+            if isinstance(f, SampledField):
+                write(f, files)
+            elif isinstance(f, math.Tensor):
+                raise NotImplementedError()
+            elif isinstance(f, Field):
+                raise ValueError("Only SampledField instances can be written. Resample other Fields before saving them.")
+            else:
+                raise ValueError(f"Only SampledField instances can be written. Got {f}")
 
-    def read_array(self, field_name, frame):
-        return read_sim_frame(self._paths, field_name, frame=frame)
-
-    # def read_sim_frames(self, fieldnames=None, frames=None):
-    #     return read_sim_frames(self.path, fieldnames=fieldnames, frames=frames, batch_dim=self.batch_dim)
+    def read_array(self, field_name: str, frame: int, convert_to_backend=True):
+        name = _slugify_filename(field_name)
+        files = math.map(lambda dir_: _filename(dir_, name, frame), self._paths)
+        return read(files, convert_to_backend=convert_to_backend)
 
     def read(self, *names: str, frame=0, convert_to_backend=True):
         """
@@ -369,7 +329,7 @@ class Scene(object):
         Returns:
             Single `phi.field.Field` or sequence of fields, depending on the type of `names`.
         """
-        result = read_sim_frame(self._paths, names, frame=frame, convert_to_backend=convert_to_backend)
+        result = [self.read_array(name, frame, convert_to_backend) for name in names]
         return result[0] if len(names) == 1 else result
 
     @property

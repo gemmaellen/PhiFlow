@@ -44,6 +44,16 @@ class Geometry:
         """
         raise NotImplementedError()
 
+    @property
+    def type(self) -> Tensor:
+        """
+        Returns the type (or types) of this geometry as a `Tensor`
+
+        Returns:
+            String `Tensor` of `Geometry` subclasses.
+        """
+        raise NotImplementedError()
+
     def unstack(self, dimension: str) -> tuple:
         """
         Unstacks this Geometry along the given dimension.
@@ -145,6 +155,18 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
+    def sample_uniform(self, *shape: math.Shape):
+        """
+        Samples uniformly distributed random points inside this volume.
+
+        Args:
+            *shape: How many points to sample per individual geometry.
+
+        Returns:
+            `Tensor` containing all dimensions from `Geometry.shape`, `shape` as well as a `channel` dimension `vector` matching the dimensionality of this `Geometry`.
+        """
+        raise NotImplementedError(self.__class__)
+
     def bounding_radius(self) -> Tensor:
         """
         Returns the radius of a Sphere object that fully encloses this geometry.
@@ -190,16 +212,28 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def rotated(self, angle) -> 'Geometry':
+    def rotated(self, angle: float or Tensor) -> 'Geometry':
         """
         Returns a rotated version of this geometry.
         The geometry is rotated about its center point.
 
         Args:
-          angle: scalar (2d) or vector (3D+) representing delta angle
+            angle: scalar (2d) or vector (3D+) representing delta angle
 
         Returns:
-          Geometry: rotated geometry
+            Rotated `Geometry`
+        """
+        raise NotImplementedError(self.__class__)
+
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
+        """
+        Scales each individual geometry by `factor`.
+        The individual `center` points act as pivots for the operation.
+
+        Args:
+            factor:
+
+        Returns:
 
         """
         raise NotImplementedError(self.__class__)

@@ -22,7 +22,7 @@ from .math import DType, Solve
 from .geom import Geometry, Sphere, Box
 from .field import Grid, CenteredGrid, StaggeredGrid, GeometryMask, SoftGeometryMask, HardGeometryMask, Noise, PointCloud, Scene
 from .vis import view, Viewer, control
-from .physics._boundaries import Obstacle
+from .physics.fluid import Obstacle
 
 # Constants
 from .math import PI

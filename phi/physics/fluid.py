@@ -5,10 +5,34 @@ from typing import Tuple
 
 from phi import math, field
 from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, HardGeometryMask, CenteredGrid
-from phi.geom import union
+from phi.geom import union, Geometry
 from ..math import extrapolation
 from ..math._tensors import copy_with
 from ..math.extrapolation import combine_sides
+
+
+class Obstacle:
+    """
+    An obstacle defines boundary conditions inside a geometry.
+    It can also have a linear and angular velocity.
+    """
+
+    def __init__(self, geometry: Geometry, velocity=0, angular_velocity=0):
+        """
+        Args:
+            geometry: Physical shape and size of the obstacle.
+            velocity: Linear velocity vector of the obstacle.
+            angular_velocity: Rotation speed of the obstacle. Scalar value in 2D, vector in 3D.
+        """
+        self.geometry = geometry
+        self.velocity = velocity
+        self.angular_velocity = angular_velocity
+
+    @property
+    def is_stationary(self):
+        """ Test whether the obstacle is completely still. """
+        return isinstance(self.velocity, (int, float)) and self.velocity == 0 and isinstance(self.angular_velocity, (int, float)) and self.angular_velocity == 0
+
 
 
 def make_incompressible(velocity: Grid,
@@ -21,7 +45,7 @@ def make_incompressible(velocity: Grid,
 
     Args:
         velocity: Vector field sampled on a grid
-        obstacles: List of Obstacles to specify boundary conditions inside the domain (Default value = ())
+        obstacles: List of Obstacles to specify boundary conditions inside the domain.
         solve: Parameters for the pressure solve as.
 
     Returns:

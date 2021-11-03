@@ -1449,7 +1449,7 @@ class TensorLike(metaclass=_TensorLikeType):
 
     def __with_attrs__(self, **attrs):
         """
-        Creates a copy of this object which has the `Tensor` or `TensorLike` attributes contained in `tattrs` replaced.
+        Creates a copy of this object which has the `Tensor` or `TensorLike` attributes contained in `attrs` replaced.
         If this method is not implemented, tensor attributes are replaced using `setattr()`.
 
         Args:
@@ -1462,8 +1462,8 @@ class TensorLike(metaclass=_TensorLikeType):
 
 
 def copy_with(obj, **tensor_attributes):
-    if hasattr(obj, '__with_tattrs__'):
-        return obj.__with_tattrs__(**tensor_attributes)
+    if hasattr(obj, '__with_attrs__'):
+        return obj.__with_attrs__(**tensor_attributes)
     else:
         cpy = copy.copy(obj)
         for attr, value in tensor_attributes.items():

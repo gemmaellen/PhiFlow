@@ -1,9 +1,9 @@
 from typing import Dict
 
-from phi import math, struct
+from phi import math
 
 from ._geom import Geometry, _fill_spatial_with_singleton
-from ..math import wrap
+from ..math import wrap, Tensor
 
 
 class Sphere(Geometry):
@@ -38,6 +38,10 @@ class Sphere(Geometry):
     def volume(self) -> math.Tensor:
         return 4 / 3 * math.PI * self._radius ** 3
 
+    @property
+    def symbol(self) -> Tensor:
+        return math.tensor('circle')
+
     def lies_inside(self, location):
         distance_squared = math.sum((location - self.center) ** 2, dim='vector')
         return math.any(distance_squared <= self.radius ** 2, self.shape.instance)  # union for instance dimensions
@@ -59,6 +63,9 @@ class Sphere(Geometry):
         distance = math.sqrt(distance_squared)
         return math.min(distance - self.radius, self.shape.instance)  # union for instance dimensions
 
+    def sample_uniform(self, *shape: math.Shape):
+        raise NotImplementedError('Not yet implemented')  # ToDo
+
     def bounding_radius(self):
         return self.radius
 
@@ -70,6 +77,9 @@ class Sphere(Geometry):
 
     def rotated(self, angle):
         return self
+
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
+        return Sphere(self.center, self.radius * factor)
 
     def __variable_attrs__(self):
         return '_radius', '_center'

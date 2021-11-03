@@ -1,10 +1,11 @@
 from typing import Any
 
-from phi import math
-from phi.geom import Geometry, GridCell, Box
+from phi import math, geom
+from phi.geom import Geometry, GridCell, Box, Sphere
 from ._field import SampledField
 from ..geom._stack import GeometryStack
 from ..math import Tensor, instance
+from ..math._tensors import variable_attributes, copy_with
 
 
 class PointCloud(SampledField):
@@ -126,8 +127,72 @@ class PointCloud(SampledField):
         from ._field_math import concat
         return concat([self, other], instance('points'))
 
+    def split_elements(self, factor=2, reduce_size=True, split_dim: math.Shape = None) -> 'PointCloud':
+        """
+        Duplicates all elements, shifting them by a random amount within the bounds of the original volumes.
 
-def nonzero(field: SampledField):
-    indices = math.nonzero(field.values, list_dim=instance('points'))
-    elements = field.elements[indices]
+        Args:
+            factor:
+            reduce_size: Whether to scale down the new elements depending on `factor`.
+            split_dim: If `True`, adds this dimension to the elements.
+                If `False`, all new points will be listed along the single `instance` dimension present in the current elements.
+
+        Returns:
+            `PointCloud` with `factor` times as many points.
+        """
+        keep_split_dim = split_dim is not None
+        if split_dim is None:
+            split_dim = math.instance(_split=factor)
+        delta = self.elements.sample_uniform(split_dim)
+        elements = self.elements.shifted(delta)
+        if not keep_split_dim:
+            assert len(self.elements.shape.instance) == 1, "When split_dim=None, the elements must have exactly one instance dimension."
+            elements = geom.pack_dims(elements, elements.shape.instance, self.elements.shape.instance)
+        if reduce_size:
+            elements = elements.scaled(1. / factor ** (1 / self.spatial_rank))
+        return PointCloud(elements, self.values, self.extrapolation, self._add_overlapping, self.bounds, self.color)
+
+
+def nonzero(field: SampledField, list_dim=instance('points')) -> PointCloud:
+    indices = math.nonzero(field.values, list_dim=list_dim)
+    attrs = {a: getattr(field.elements, a) for a in variable_attributes(field.elements)}
+    attrs = {a: math.gather(v, indices) if v.shape.spatial else v for a, v in attrs.items()}
+    elements = copy_with(field.elements, **attrs)
+    # elements = field.elements[indices]
     return PointCloud(elements, values=math.tensor(1.), extrapolation=math.extrapolation.ZERO, add_overlapping=False, bounds=field.bounds, color=None)
+
+
+def distribute_points(mask: math.Tensor, points_per_cell: int = 1, center: bool = False) -> math.Tensor:
+    """
+    Generates points (either uniformly distributed or at the cell centers) according to the given tensor mask.
+
+    Args:
+        mask: Tensor with nonzero values at the indices where particles should get generated.
+        points_per_cell: Number of particles to generate at each marked index
+        center: Set points to cell centers. If False, points will be distributed using a uniform
+            distribution within each cell.
+
+    Returns:
+        A tensor containing the positions of the generated points.
+    """
+    indices = math.to_float(math.nonzero(mask, list_dim=instance('points')))
+    temp = []
+    for _ in range(points_per_cell):
+        if center:
+            temp.append(indices + 0.5)
+        else:
+            temp.append(indices + (math.random_uniform(indices.shape)))
+    points = math.concat(temp, dim=instance('points'))
+    extrapolation = extrapolation if isinstance(extrapolation, math.Extrapolation) else self.boundaries[extrapolation]
+    if radius is None:
+        radius = math.mean(self.bounds.size) * 0.005
+    # --- Parse points: tuple / list ---
+    if isinstance(points, (tuple, list)):
+        if len(points) == 0:  # no points
+            points = math.zeros(instance(points=0), channel(vector=1))
+        elif isinstance(points[0], Number):  # single point
+            points = math.tensor([points], instance('points'), channel('vector'))
+        else:
+            points = math.tensor(points, instance('points'), channel('vector'))
+    elements = Sphere(points, radius)
+    return PointCloud(elements, values, extrapolation, add_overlapping=False, bounds=self.bounds, color=color)

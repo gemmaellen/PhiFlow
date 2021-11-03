@@ -89,11 +89,10 @@ def _plot(field: SampledField,
             upper_x, upper_y = [numpy.max(x), numpy.max(y)]
         radius = field.elements.bounding_radius() * size[1] / (upper_y - lower_y)
         radius = math.maximum(radius, 2)
-        if radius.rank == 0:
-            marker_size = 2 * float(radius)
-        else:
-            marker_size = (2 * radius).unstack(radius.shape.instance.name)
-        marker = graph_objects.scatter.Marker(size=marker_size, color=color, sizemode='diameter')
+        marker_size = 2 * float(radius) if radius.rank == 0 else (2 * radius).numpy()
+        symbol = field.elements.symbol.numpy()
+        symbol = ['asterisk' if n == '?' else n for n in symbol]
+        marker = graph_objects.scatter.Marker(size=marker_size, color=color, sizemode='diameter', symbol=symbol)
         fig.add_scatter(mode='markers', x=x, y=y, marker=marker, row=row, col=col)
         fig.update_xaxes(range=[lower_x, upper_x])
         fig.update_yaxes(range=[lower_y, upper_y])
