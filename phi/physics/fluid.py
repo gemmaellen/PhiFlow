@@ -33,6 +33,12 @@ class Obstacle:
         """ Test whether the obstacle is completely still. """
         return isinstance(self.velocity, (int, float)) and self.velocity == 0 and isinstance(self.angular_velocity, (int, float)) and self.angular_velocity == 0
 
+    def copied_with(self, geometry=None, velocity=None, angular_velocity=None):
+        return Obstacle(geometry if geometry is not None else self.geometry,
+                        velocity if velocity is not None else self.velocity,
+                        angular_velocity if angular_velocity is not None else self.angular_velocity)
+
+
 
 
 def make_incompressible(velocity: Grid,
