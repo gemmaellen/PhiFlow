@@ -39,9 +39,10 @@ def _plot(field: SampledField,
           ):
     if field.spatial_rank == 1 and isinstance(field, Grid):
         x = field.points.vector[0].numpy().flatten()
-        y = math.reshaped_native(real_values(field), [field.shape.spatial], to_numpy=True)
-        fig.add_trace(graph_objects.Scatter(x=x, y=y, mode='lines+markers'), row=row, col=col)
-        fig.update_layout(showlegend=False)
+        for channel in field.values.shape.channel.meshgrid():
+            y = math.reshaped_native(real_values(field[channel]), [field.shape.spatial], to_numpy=True)
+            fig.add_trace(graph_objects.Scatter(x=x, y=y, mode='lines+markers'), row=row, col=col)
+            fig.update_layout(showlegend=False)
     elif field.spatial_rank == 2 and isinstance(field, Grid) and field.shape.channel.volume == 1:  # heatmap
         values = real_values(field).numpy('y,x')
         x = field.points.vector['x'].y[0].numpy()
