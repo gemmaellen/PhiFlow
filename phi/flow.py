@@ -18,7 +18,7 @@ from .math import extrapolation, backend
 from .physics import fluid, flip, advect, diffuse
 
 # Classes
-from .math import DType, Solve
+from .math import DType, Solve, Tensor
 from .geom import Geometry, Sphere, Box
 from .field import Grid, CenteredGrid, StaggeredGrid, GeometryMask, SoftGeometryMask, HardGeometryMask, Noise, PointCloud, Scene
 from .vis import view, Viewer, control
