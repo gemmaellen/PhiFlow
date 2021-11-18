@@ -259,9 +259,11 @@ def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
         assert isinstance(axis, plt.Axes)
         names_equal = names[b].rank == 0
         paths_equal = scene.paths[b].rank == 0
-        if titles:
+        if titles is not False:
             if isinstance(titles, str):
                 axis.set_title(titles)
+            elif isinstance(titles, math.Tensor):
+                axis.set_title(titles[b].native())
             elif names_equal:
                 axis.set_title(display_name(str(names[b])))
             elif paths_equal:
